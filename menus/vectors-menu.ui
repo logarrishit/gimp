@@ -29,6 +29,7 @@
         <item><attribute name="action">app.vectors-merge-visible</attribute></item>
       </section>
       <section>
+        <item><attribute name="action">app.vectors-to-vector-layer</attribute></item>
         <item><attribute name="action">app.vectors-selection-replace</attribute></item>
         <item><attribute name="action">app.vectors-selection-add</attribute></item>
         <item><attribute name="action">app.vectors-selection-subtract</attribute></item>
