@@ -321,6 +321,8 @@ gimp_drawable_init (GimpDrawable *drawable)
   drawable->private = gimp_drawable_get_instance_private (drawable);
 
   drawable->private->filter_stack = gimp_filter_stack_new (GIMP_TYPE_FILTER);
+  drawable->private->temp_filter_stack =
+    gimp_filter_stack_new (GIMP_TYPE_FILTER);
 }
 
 /* sorry for the evil casts */
@@ -371,6 +373,7 @@ gimp_drawable_finalize (GObject *object)
   g_clear_object (&drawable->private->source_node);
   g_clear_object (&drawable->private->buffer_source_node);
   g_clear_object (&drawable->private->filter_stack);
+  g_clear_object (&drawable->private->temp_filter_stack);
 
   G_OBJECT_CLASS (parent_class)->finalize (object);
 }
@@ -1510,6 +1513,7 @@ gimp_drawable_get_source_node (GimpDrawable *drawable)
 {
   GeglNode *input;
   GeglNode *source;
+  GeglNode *temp_filter;
   GeglNode *filter;
   GeglNode *output;
 
@@ -1533,11 +1537,19 @@ gimp_drawable_get_source_node (GimpDrawable *drawable)
       gegl_node_link (input, source);
     }
 
+  /* NDE Experiments */
+  temp_filter = gimp_filter_stack_get_graph (GIMP_FILTER_STACK (drawable->private->temp_filter_stack));
+
+  gegl_node_add_child (drawable->private->source_node, temp_filter);
+
+  gegl_node_link (source, temp_filter);
+
+  /* NDE Experiments */
   filter = gimp_filter_stack_get_graph (GIMP_FILTER_STACK (drawable->private->filter_stack));
 
-  gegl_node_add_child (drawable->private->source_node, filter);
+  gegl_node_add_child (temp_filter, filter);
 
-  gegl_node_link (source, filter);
+  gegl_node_link (temp_filter, filter);
 
   output = gegl_node_get_output_proxy (drawable->private->source_node, "output");
 

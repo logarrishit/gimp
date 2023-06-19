@@ -186,6 +186,7 @@ gimp_operation_tool_initialize (GimpTool     *tool,
       GimpFilterTool    *filter_tool = GIMP_FILTER_TOOL (tool);
       GimpOperationTool *op_tool     = GIMP_OPERATION_TOOL (tool);
 
+      gimp_filter_tool_add_nde_button (filter_tool);
       if (filter_tool->config)
         {
           GtkWidget *options_gui;
@@ -227,6 +228,11 @@ gimp_operation_tool_control (GimpTool       *tool,
       break;
 
     case GIMP_TOOL_ACTION_COMMIT:
+      gimp_operation_tool_commit (op_tool);
+      break;
+
+    /* NDE Experiments */
+    case GIMP_TOOL_ACTION_NDE_COMMIT:
       gimp_operation_tool_commit (op_tool);
       break;
     }
@@ -673,8 +679,8 @@ gimp_operation_tool_aux_input_new (GimpOperationTool *op_tool,
                                      "operation", "gegl:buffer-source",
                                      NULL);
 
-  gegl_node_connect (input->node, "output",
-                     operation,   input_pad);
+  gegl_node_connect_to (input->node, "output",
+                        operation,   input_pad);
 
   context = GIMP_CONTEXT (GIMP_TOOL_GET_OPTIONS (op_tool));
 

@@ -83,6 +83,8 @@
 
 #include "gimp-intl.h"
 
+#define GIMP_APPLY_LAYER_EFFECTS  43
+
 
 /*  local function prototypes  */
 
@@ -153,7 +155,8 @@ static void      gimp_filter_tool_real_config_notify
                                                   const GParamSpec    *pspec);
 
 static void      gimp_filter_tool_halt           (GimpFilterTool      *filter_tool);
-static void      gimp_filter_tool_commit         (GimpFilterTool      *filter_tool);
+static void      gimp_filter_tool_commit         (GimpFilterTool      *filter_tool,
+                                                  gboolean             is_nde);
 
 static void      gimp_filter_tool_dialog         (GimpFilterTool      *filter_tool);
 static void      gimp_filter_tool_reset          (GimpFilterTool      *filter_tool);
@@ -478,7 +481,11 @@ gimp_filter_tool_control (GimpTool       *tool,
       break;
 
     case GIMP_TOOL_ACTION_COMMIT:
-      gimp_filter_tool_commit (filter_tool);
+      gimp_filter_tool_commit (filter_tool, FALSE);
+      break;
+
+    case GIMP_TOOL_ACTION_NDE_COMMIT:
+      gimp_filter_tool_commit (filter_tool, TRUE);
       break;
     }
 
@@ -1025,7 +1032,8 @@ gimp_filter_tool_halt (GimpFilterTool *filter_tool)
 }
 
 static void
-gimp_filter_tool_commit (GimpFilterTool *filter_tool)
+gimp_filter_tool_commit (GimpFilterTool *filter_tool,
+                         gboolean        is_nde)
 {
   GimpTool *tool = GIMP_TOOL (filter_tool);
 
@@ -1039,10 +1047,22 @@ gimp_filter_tool_commit (GimpFilterTool *filter_tool)
       if (! options->preview)
         gimp_drawable_filter_apply (filter_tool->filter, NULL);
 
+      /* NDE Experiment */
+      if (is_nde)
+        {
+          gimp_drawable_filter_abort (filter_tool->filter);
+          gimp_drawable_filter_nde_apply (filter_tool->filter, NULL);
+        }
+
       gimp_tool_control_push_preserve (tool->control, TRUE);
 
-      gimp_drawable_filter_commit (filter_tool->filter,
-                                   GIMP_PROGRESS (tool), TRUE);
+      if (is_nde)
+        gimp_drawable_filter_nde_commit (filter_tool->filter,
+                                         GIMP_PROGRESS (tool), TRUE);
+      else
+        gimp_drawable_filter_commit (filter_tool->filter,
+                                     GIMP_PROGRESS (tool), FALSE);
+
       g_clear_object (&filter_tool->filter);
 
       gimp_tool_control_pop_preserve (tool->control);
@@ -1503,6 +1523,10 @@ gimp_filter_tool_response (GimpToolGui    *gui,
       gimp_tool_control (tool, GIMP_TOOL_ACTION_COMMIT, tool->display);
       break;
 
+    case GIMP_APPLY_LAYER_EFFECTS:
+      gimp_tool_control (tool, GIMP_TOOL_ACTION_NDE_COMMIT, tool->display);
+      break;
+
     default:
       gimp_tool_control (tool, GIMP_TOOL_ACTION_HALT, tool->display);
       break;
@@ -1945,6 +1969,15 @@ gimp_filter_tool_add_controller (GimpFilterTool     *filter_tool,
   g_object_unref (widget);
 
   return set_func;
+}
+
+void
+gimp_filter_tool_add_nde_button (GimpFilterTool *filter_tool)
+{
+  if (filter_tool)
+    gimp_tool_gui_add_button (filter_tool->gui,
+                              _("As _Layer Effect"),
+                              GIMP_APPLY_LAYER_EFFECTS);
 }
 
 void

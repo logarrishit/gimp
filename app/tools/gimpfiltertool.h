@@ -136,6 +136,7 @@ GCallback   gimp_filter_tool_add_controller        (GimpFilterTool     *filter_t
                                                     GCallback           callback,
                                                     gpointer            callback_data,
                                                     gpointer           *set_func_data);
+void        gimp_filter_tool_add_nde_button        (GimpFilterTool     *filter_tool);
 
 void        gimp_filter_tool_set_widget            (GimpFilterTool     *filter_tool,
                                                     GimpToolWidget     *widget);

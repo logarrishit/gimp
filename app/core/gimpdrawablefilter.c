@@ -118,7 +118,8 @@ static void       gimp_drawable_filter_sync_gamma_hack       (GimpDrawableFilter
 
 static gboolean   gimp_drawable_filter_is_added              (GimpDrawableFilter  *filter);
 static gboolean   gimp_drawable_filter_is_active             (GimpDrawableFilter  *filter);
-static gboolean   gimp_drawable_filter_add_filter            (GimpDrawableFilter  *filter);
+static gboolean   gimp_drawable_filter_add_filter            (GimpDrawableFilter  *filter,
+                                                              gboolean             is_nde);
 static gboolean   gimp_drawable_filter_remove_filter         (GimpDrawableFilter  *filter);
 
 static void       gimp_drawable_filter_update_drawable       (GimpDrawableFilter  *filter,
@@ -554,7 +555,26 @@ gimp_drawable_filter_apply (GimpDrawableFilter  *filter,
   g_return_if_fail (GIMP_IS_DRAWABLE_FILTER (filter));
   g_return_if_fail (gimp_item_is_attached (GIMP_ITEM (filter->drawable)));
 
-  gimp_drawable_filter_add_filter (filter);
+  gimp_drawable_filter_add_filter (filter, FALSE);
+
+  gimp_drawable_filter_sync_clip (filter, TRUE);
+
+  if (gimp_drawable_filter_is_active (filter))
+    {
+      gimp_drawable_update_bounding_box (filter->drawable);
+
+      gimp_drawable_filter_update_drawable (filter, area);
+    }
+}
+
+void
+gimp_drawable_filter_nde_apply (GimpDrawableFilter  *filter,
+                                const GeglRectangle *area)
+{
+  g_return_if_fail (GIMP_IS_DRAWABLE_FILTER (filter));
+  g_return_if_fail (gimp_item_is_attached (GIMP_ITEM (filter->drawable)));
+
+  gimp_drawable_filter_add_filter (filter, TRUE);
 
   gimp_drawable_filter_sync_clip (filter, TRUE);
 
@@ -599,9 +619,41 @@ gimp_drawable_filter_commit (GimpDrawableFilter *filter,
                                             FALSE);
 
       gimp_drawable_filter_remove_filter (filter);
+      success = FALSE;
 
       if (! success)
         gimp_drawable_filter_update_drawable (filter, NULL);
+
+      g_signal_emit (filter, drawable_filter_signals[FLUSH], 0);
+    }
+
+  return success;
+}
+
+gboolean
+gimp_drawable_filter_nde_commit (GimpDrawableFilter *filter,
+                                 GimpProgress       *progress,
+                                 gboolean            cancellable)
+{
+  gboolean success = TRUE;
+
+  g_return_val_if_fail (GIMP_IS_DRAWABLE_FILTER (filter), FALSE);
+  g_return_val_if_fail (gimp_item_is_attached (GIMP_ITEM (filter->drawable)),
+                        FALSE);
+  g_return_val_if_fail (progress == NULL || GIMP_IS_PROGRESS (progress), FALSE);
+
+  if (gimp_drawable_filter_is_added (filter))
+    {
+      const Babl *format;
+
+      format = gimp_drawable_filter_get_format (filter);
+
+      gimp_drawable_filter_set_preview_split (filter, FALSE,
+                                              filter->preview_split_alignment,
+                                              filter->preview_split_position);
+      gimp_drawable_filter_set_preview (filter, TRUE);
+
+      gimp_drawable_filter_update_drawable (filter, NULL);
 
       g_signal_emit (filter, drawable_filter_signals[FLUSH], 0);
     }
@@ -1019,7 +1071,8 @@ gimp_drawable_filter_is_active (GimpDrawableFilter *filter)
 }
 
 static gboolean
-gimp_drawable_filter_add_filter (GimpDrawableFilter *filter)
+gimp_drawable_filter_add_filter (GimpDrawableFilter *filter,
+                                 gboolean            is_nde)
 {
   if (! gimp_drawable_filter_is_added (filter))
     {
@@ -1044,8 +1097,12 @@ gimp_drawable_filter_add_filter (GimpDrawableFilter *filter)
       gimp_drawable_filter_sync_format (filter);
       gimp_drawable_filter_sync_gamma_hack (filter);
 
-      gimp_drawable_add_filter (filter->drawable,
-                                GIMP_FILTER (filter));
+      if (! is_nde)
+        gimp_drawable_add_filter (filter->drawable,
+                                  GIMP_FILTER (filter));
+      else
+        gimp_drawable_add_nde_filter (filter->drawable,
+                                      GIMP_FILTER (filter));
 
       gimp_drawable_update_bounding_box (filter->drawable);
 
@@ -1210,7 +1267,7 @@ static void
 gimp_drawable_filter_drawable_removed (GimpDrawable       *drawable,
                                        GimpDrawableFilter *filter)
 {
-  gimp_drawable_filter_remove_filter (filter);
+  //gimp_drawable_filter_remove_filter (filter);
 }
 
 static void

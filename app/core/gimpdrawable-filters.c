@@ -79,6 +79,18 @@ gimp_drawable_add_filter (GimpDrawable *drawable,
   g_return_if_fail (GIMP_IS_FILTER (filter));
   g_return_if_fail (gimp_drawable_has_filter (drawable, filter) == FALSE);
 
+  gimp_container_add (drawable->private->temp_filter_stack,
+                      GIMP_OBJECT (filter));
+}
+
+void
+gimp_drawable_add_nde_filter (GimpDrawable *drawable,
+                              GimpFilter   *filter)
+{
+  g_return_if_fail (GIMP_IS_DRAWABLE (drawable));
+  g_return_if_fail (GIMP_IS_FILTER (filter));
+  g_return_if_fail (gimp_drawable_has_filter (drawable, filter) == FALSE);
+
   gimp_container_add (drawable->private->filter_stack,
                       GIMP_OBJECT (filter));
 }
@@ -91,19 +103,74 @@ gimp_drawable_remove_filter (GimpDrawable *drawable,
   g_return_if_fail (GIMP_IS_FILTER (filter));
   g_return_if_fail (gimp_drawable_has_filter (drawable, filter) == TRUE);
 
+  gimp_container_remove (drawable->private->temp_filter_stack,
+                         GIMP_OBJECT (filter));
+}
+
+void
+gimp_drawable_remove_nde_filter (GimpDrawable *drawable,
+                                 GimpFilter   *filter)
+{
+  g_return_if_fail (GIMP_IS_DRAWABLE (drawable));
+  g_return_if_fail (GIMP_IS_FILTER (filter));
+  g_return_if_fail (gimp_drawable_has_filter (drawable, filter) == TRUE);
+
   gimp_container_remove (drawable->private->filter_stack,
                          GIMP_OBJECT (filter));
+}
+
+void
+gimp_drawable_clear_filters (GimpDrawable *drawable)
+{
+  g_return_if_fail (GIMP_IS_DRAWABLE (drawable));
+
+  gimp_container_clear (drawable->private->filter_stack);
+}
+
+void
+gimp_drawable_merge_filters (GimpDrawable *drawable)
+{
+  GList *list;
+
+ if (! GIMP_IS_DRAWABLE (drawable))
+   return;
+
+  for (list = GIMP_LIST (drawable->private->filter_stack)->queue->head;
+       list;
+       list = g_list_next (list))
+    {
+      GimpFilter *filter = list->data;
+      const Babl *format;
+
+      format = gimp_drawable_get_format (drawable);
+
+      gimp_drawable_merge_filter (drawable,
+                                  GIMP_FILTER (filter),
+                                  NULL,
+                                  gimp_object_get_name (filter),
+                                  format,
+                                  TRUE,
+                                  TRUE,
+                                  FALSE);
+    }
 }
 
 gboolean
 gimp_drawable_has_filter (GimpDrawable *drawable,
                           GimpFilter   *filter)
 {
+  gboolean filter_exists = FALSE;
+
   g_return_val_if_fail (GIMP_IS_DRAWABLE (drawable), FALSE);
   g_return_val_if_fail (GIMP_IS_FILTER (filter), FALSE);
 
-  return gimp_container_have (drawable->private->filter_stack,
-                              GIMP_OBJECT (filter));
+  filter_exists = gimp_container_have (drawable->private->filter_stack,
+                                       GIMP_OBJECT (filter));
+  if (! filter_exists)
+    filter_exists = gimp_container_have (drawable->private->temp_filter_stack,
+                                         GIMP_OBJECT (filter));
+
+  return filter_exists;
 }
 
 gboolean

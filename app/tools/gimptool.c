@@ -337,6 +337,7 @@ gimp_tool_real_control (GimpTool       *tool,
       break;
 
     case GIMP_TOOL_ACTION_COMMIT:
+    case GIMP_TOOL_ACTION_NDE_COMMIT:
       break;
     }
 }
@@ -680,6 +681,7 @@ gimp_tool_control (GimpTool       *tool,
       break;
 
     case GIMP_TOOL_ACTION_COMMIT:
+    case GIMP_TOOL_ACTION_NDE_COMMIT:
       gimp_tool_release (tool);
 
       GIMP_TOOL_GET_CLASS (tool)->control (tool, action, display);

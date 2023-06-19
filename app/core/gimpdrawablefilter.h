@@ -95,8 +95,13 @@ const Babl *
 
 void       gimp_drawable_filter_apply          (GimpDrawableFilter  *filter,
                                                 const GeglRectangle *area);
+void       gimp_drawable_filter_nde_apply      (GimpDrawableFilter  *filter,
+                                                const GeglRectangle *area);
 
 gboolean   gimp_drawable_filter_commit         (GimpDrawableFilter  *filter,
+                                                GimpProgress        *progress,
+                                                gboolean             cancellable);
+gboolean   gimp_drawable_filter_nde_commit     (GimpDrawableFilter  *filter,
                                                 GimpProgress        *progress,
                                                 gboolean             cancellable);
 void       gimp_drawable_filter_abort          (GimpDrawableFilter  *filter);

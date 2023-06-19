@@ -32,6 +32,7 @@
 #include "core/gimpdrawable-filters.h"
 #include "core/gimpimage.h"
 #include "core/gimplayer.h"
+#include "core/gimplist.h"
 
 #include "text/gimptext.h"
 #include "text/gimptextlayer.h"
@@ -91,6 +92,13 @@ static void   layer_options_dialog_mode_notify    (GtkWidget          *widget,
                                                    const GParamSpec   *pspec,
                                                    LayerOptionsDialog *private);
 static void   layer_options_dialog_rename_toggled (GtkWidget          *widget,
+                                                   LayerOptionsDialog *private);
+
+/* NDE Experiments */
+static void   layer_options_dialog_clear_filters  (GtkWidget          *widget,
+                                                   LayerOptionsDialog *private);
+static void   layer_options_dialog_merge_nde_filters
+                                                  (GtkWidget          *widget,
                                                    LayerOptionsDialog *private);
 
 
@@ -385,12 +393,19 @@ layer_options_dialog_new (GimpImage                *image,
   if (layer)
     {
       GtkWidget     *left_vbox = item_options_dialog_get_vbox (dialog);
+      GtkWidget     *filters_hbox;
+      GtkWidget     *filters_ui_vbox;
       GtkWidget     *frame;
       GimpContainer *filters;
       GtkWidget     *view;
+      GtkWidget     *ui_button;
+
+      filters_hbox = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 6);
+      gtk_box_pack_start (GTK_BOX (left_vbox), filters_hbox, TRUE, TRUE, 0);
+      gtk_widget_set_visible (filters_hbox, TRUE);
 
       frame = gimp_frame_new (_("Active Filters"));
-      gtk_box_pack_start (GTK_BOX (left_vbox), frame, TRUE, TRUE, 0);
+      gtk_box_pack_start (GTK_BOX (filters_hbox), frame, TRUE, TRUE, 0);
       gtk_widget_show (frame);
 
       filters = gimp_drawable_get_filters (GIMP_DRAWABLE (layer));
@@ -399,6 +414,27 @@ layer_options_dialog_new (GimpImage                *image,
                                            GIMP_VIEW_SIZE_SMALL, 0);
       gtk_container_add (GTK_CONTAINER (frame), view);
       gtk_widget_show (view);
+
+      /* NDE UI Experiments */
+      filters_ui_vbox = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
+      gtk_box_pack_start (GTK_BOX (filters_hbox), filters_ui_vbox, TRUE, TRUE, 0);
+      gtk_widget_set_visible (filters_ui_vbox, TRUE);
+
+      ui_button = gtk_button_new_with_mnemonic (_("Clear Layer E_ffects"));
+      gtk_box_pack_start (GTK_BOX (filters_ui_vbox), ui_button, FALSE, FALSE, 0);
+      gtk_widget_set_visible (ui_button, TRUE);
+
+      g_signal_connect (ui_button, "clicked",
+                        G_CALLBACK (layer_options_dialog_clear_filters),
+                        private);
+
+      ui_button = gtk_button_new_with_mnemonic (_("_Merge Layer Effects"));
+      gtk_box_pack_start (GTK_BOX (filters_ui_vbox), ui_button, FALSE, FALSE, 0);
+      gtk_widget_set_visible (ui_button, TRUE);
+
+      g_signal_connect (ui_button, "clicked",
+                        G_CALLBACK (layer_options_dialog_merge_nde_filters),
+                        private);
     }
 
   button = item_options_dialog_get_lock_position (dialog);
@@ -570,4 +606,23 @@ layer_options_dialog_rename_toggled (GtkWidget          *widget,
           g_free (name);
         }
     }
+}
+
+static void
+layer_options_dialog_clear_filters (GtkWidget          *widget,
+                                    LayerOptionsDialog *private)
+{
+  gimp_drawable_clear_filters (GIMP_DRAWABLE (private->layer));
+
+  private->opacity -= 1;
+}
+
+static void
+layer_options_dialog_merge_nde_filters (GtkWidget          *widget,
+                                        LayerOptionsDialog *private)
+{
+  gimp_drawable_merge_filters (GIMP_DRAWABLE (private->layer));
+  gimp_drawable_clear_filters (GIMP_DRAWABLE (private->layer));
+
+  private->opacity -= 1;
 }
