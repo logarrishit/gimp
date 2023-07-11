@@ -128,12 +128,34 @@ gimp_drawable_clear_filters (GimpDrawable *drawable)
 }
 
 void
+gimp_drawable_remove_last_filter (GimpDrawable *drawable)
+{
+  GimpFilter *filter;
+
+  if (! GIMP_IS_DRAWABLE (drawable))
+    return;
+
+  filter = GIMP_LIST (drawable->private->filter_stack)->queue->head->data;
+
+  gimp_drawable_remove_nde_filter (drawable,
+                                   GIMP_FILTER (filter));
+}
+
+void
+gimp_drawable_remove_selected_filter (GimpDrawable *drawable,
+                                      GimpFilter   *filter)
+{
+  gimp_drawable_remove_nde_filter (drawable,
+                                   GIMP_FILTER (filter));
+}
+
+void
 gimp_drawable_merge_filters (GimpDrawable *drawable)
 {
   GList *list;
 
- if (! GIMP_IS_DRAWABLE (drawable))
-   return;
+  if (! GIMP_IS_DRAWABLE (drawable))
+    return;
 
   for (list = GIMP_LIST (drawable->private->filter_stack)->queue->head;
        list;

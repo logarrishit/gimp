@@ -58,6 +58,7 @@ struct _LayerOptionsDialog
   GimpLayerCompositeMode    composite_mode;
   gdouble                   opacity;
   GimpFillType              fill_type;
+  GimpFilter               *filter;
   gboolean                  lock_alpha;
   gboolean                  rename_text_layers;
   GimpLayerOptionsCallback  callback;
@@ -69,6 +70,7 @@ struct _LayerOptionsDialog
   GtkWidget                *composite_mode_combo;
   GtkWidget                *size_se;
   GtkWidget                *offset_se;
+  GtkWidget                *filter_view;
 };
 
 
@@ -95,7 +97,17 @@ static void   layer_options_dialog_rename_toggled (GtkWidget          *widget,
                                                    LayerOptionsDialog *private);
 
 /* NDE Experiments */
+static gboolean
+              layer_options_dialog_filters_selected
+                                                  (GimpContainerView  *view,
+                                                   GList              *filters,
+                                                   GList              *paths,
+                                                   LayerOptionsDialog *private);
+
 static void   layer_options_dialog_clear_filters  (GtkWidget          *widget,
+                                                   LayerOptionsDialog *private);
+static void   layer_options_dialog_remove_last_filter
+                                                  (GtkWidget          *widget,
                                                    LayerOptionsDialog *private);
 static void   layer_options_dialog_merge_nde_filters
                                                   (GtkWidget          *widget,
@@ -397,7 +409,6 @@ layer_options_dialog_new (GimpImage                *image,
       GtkWidget     *filters_ui_vbox;
       GtkWidget     *frame;
       GimpContainer *filters;
-      GtkWidget     *view;
       GtkWidget     *ui_button;
 
       filters_hbox = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 6);
@@ -410,12 +421,17 @@ layer_options_dialog_new (GimpImage                *image,
 
       filters = gimp_drawable_get_filters (GIMP_DRAWABLE (layer));
 
-      view = gimp_container_tree_view_new (filters, context,
-                                           GIMP_VIEW_SIZE_SMALL, 0);
-      gtk_container_add (GTK_CONTAINER (frame), view);
-      gtk_widget_show (view);
+      private->filter_view = gimp_container_tree_view_new (filters, context,
+                                                           GIMP_VIEW_SIZE_SMALL, 0);
+      gtk_container_add (GTK_CONTAINER (frame), private->filter_view);
+      gtk_widget_show (private->filter_view);
 
       /* NDE UI Experiments */
+      g_signal_connect (GIMP_CONTAINER_TREE_VIEW (private->filter_view),
+                        "select-items",
+                        G_CALLBACK (layer_options_dialog_filters_selected),
+                        private);
+
       filters_ui_vbox = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
       gtk_box_pack_start (GTK_BOX (filters_hbox), filters_ui_vbox, TRUE, TRUE, 0);
       gtk_widget_set_visible (filters_ui_vbox, TRUE);
@@ -426,6 +442,14 @@ layer_options_dialog_new (GimpImage                *image,
 
       g_signal_connect (ui_button, "clicked",
                         G_CALLBACK (layer_options_dialog_clear_filters),
+                        private);
+
+      ui_button = gtk_button_new_with_mnemonic (_("Remove _Selected Effect"));
+      gtk_box_pack_start (GTK_BOX (filters_ui_vbox), ui_button, FALSE, FALSE, 0);
+      gtk_widget_set_visible (ui_button, TRUE);
+
+      g_signal_connect (ui_button, "clicked",
+                        G_CALLBACK (layer_options_dialog_remove_last_filter),
                         private);
 
       ui_button = gtk_button_new_with_mnemonic (_("_Merge Layer Effects"));
@@ -608,11 +632,41 @@ layer_options_dialog_rename_toggled (GtkWidget          *widget,
     }
 }
 
+static gboolean
+layer_options_dialog_filters_selected (GimpContainerView  *view,
+                                       GList              *filters,
+                                       GList              *paths,
+                                       LayerOptionsDialog *private)
+{
+  g_return_val_if_fail (g_list_length (filters) <= 1, FALSE);
+
+  if (filters)
+    {
+      GimpFilter *filter = filters->data;
+      private->filter = filter;
+    }
+
+  return TRUE;
+}
+
 static void
 layer_options_dialog_clear_filters (GtkWidget          *widget,
                                     LayerOptionsDialog *private)
 {
   gimp_drawable_clear_filters (GIMP_DRAWABLE (private->layer));
+
+  private->opacity -= 1;
+}
+
+static void
+layer_options_dialog_remove_last_filter (GtkWidget          *widget,
+                                         LayerOptionsDialog *private)
+{
+  if (private->filter)
+    gimp_drawable_remove_selected_filter (GIMP_DRAWABLE (private->layer),
+                                      private->filter);
+  else
+    gimp_drawable_remove_last_filter (GIMP_DRAWABLE (private->layer));
 
   private->opacity -= 1;
 }

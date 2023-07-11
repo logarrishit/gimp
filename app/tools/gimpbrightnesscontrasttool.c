@@ -301,6 +301,8 @@ gimp_brightness_contrast_tool_dialog (GimpFilterTool *filter_tool)
   g_signal_connect (button, "clicked",
                     G_CALLBACK (brightness_contrast_to_levels_callback),
                     filter_tool);
+
+  gimp_filter_tool_add_nde_button (filter_tool);
 }
 
 static void

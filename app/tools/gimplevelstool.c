@@ -651,6 +651,8 @@ gimp_levels_tool_dialog (GimpFilterTool *filter_tool)
 
   gimp_int_combo_box_set_active (GIMP_INT_COMBO_BOX (tool->channel_menu),
                                  config->channel);
+
+  gimp_filter_tool_add_nde_button (filter_tool);
 }
 
 static void

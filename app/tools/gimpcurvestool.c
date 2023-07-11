@@ -682,6 +682,8 @@ gimp_curves_tool_dialog (GimpFilterTool *filter_tool)
 
   gtk_label_set_mnemonic_widget (GTK_LABEL (label), combo);
 
+  gimp_filter_tool_add_nde_button (filter_tool);
+
   gimp_curves_tool_update_channel (tool);
 }
 

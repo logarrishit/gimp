@@ -305,6 +305,8 @@ gimp_threshold_tool_dialog (GimpFilterTool *filter_tool)
   g_signal_connect (button, "clicked",
                     G_CALLBACK (gimp_threshold_tool_auto_clicked),
                     t_tool);
+
+  gimp_filter_tool_add_nde_button (filter_tool);
 }
 
 static void

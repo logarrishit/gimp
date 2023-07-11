@@ -35,6 +35,11 @@ void            gimp_drawable_remove_nde_filter
                                             (GimpDrawable *drawable,
                                              GimpFilter   *filter);
 void            gimp_drawable_clear_filters (GimpDrawable *drawable);
+void            gimp_drawable_remove_last_filter
+                                            (GimpDrawable *drawable);
+void            gimp_drawable_remove_selected_filter
+                                            (GimpDrawable *drawable,
+                                             GimpFilter   *filter);
 void            gimp_drawable_merge_filters (GimpDrawable *drawable);
 
 gboolean        gimp_drawable_has_filter    (GimpDrawable *drawable,
