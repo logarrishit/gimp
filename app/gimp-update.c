@@ -37,6 +37,7 @@
 #include "core/core-types.h"
 
 #include "config/gimpcoreconfig.h"
+#include "config/gimpguiconfig.h"
 
 #ifndef GIMP_CONSOLE_COMPILATION
 #include "dialogs/about-dialog.h"
@@ -596,7 +597,8 @@ gimp_update_auto_check (GimpCoreConfig *config,
   gint64 prev_update_timestamp;
   gint64 current_timestamp;
 
-  if (config->config_version == NULL ||
+  if (config->config_version == NULL                ||
+      GIMP_GUI_CONFIG (config)->show_welcome_dialog ||
       gimp_version_cmp (GIMP_VERSION,
                         config->config_version) > 0)
     {
@@ -604,7 +606,7 @@ gimp_update_auto_check (GimpCoreConfig *config,
       /* GIMP was just updated and this is the first time the new
        * version is run. Display a welcome dialog, and do not check for
        * updates right now. */
-      gtk_widget_show (welcome_dialog_create (gimp));
+      gtk_widget_set_visible (welcome_dialog_create (gimp), TRUE);
 
       return FALSE;
 #else

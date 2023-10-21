@@ -93,8 +93,9 @@ struct _GimpGuiConfig
   gboolean             show_tabs;
   GimpPosition         tabs_position;
   gint                 last_tip_shown;
+  gboolean             show_welcome_dialog;
 
-  /* Currently ignored snce "gtk-can-change-accels" settings got deprecated in
+  /* Currently ignored since "gtk-can-change-accels" settings got deprecated in
    * GTK+ 3.10.
    */
   gboolean             can_change_accels;

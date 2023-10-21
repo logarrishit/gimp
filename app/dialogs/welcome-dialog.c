@@ -86,6 +86,9 @@ static void   welcome_dialog_create_personalize_page (Gimp           *gimp,
                                                       GimpConfig     *config,
                                                       GtkWidget      *welcome_dialog,
                                                       GtkWidget      *main_vbox);
+static void   welcome_dialog_create_creation_page    (Gimp           *gimp,
+                                                      GtkWidget      *welcome_dialog,
+                                                      GtkWidget      *main_vbox);
 
 /* MOVE TO PREFERENCES_UTIL */
 static void   prefs_gui_config_notify_font_size      (GObject        *config,
@@ -294,16 +297,8 @@ welcome_dialog_new (Gimp       *gimp,
                                        NULL,
                                        &top_iter);
   gtk_container_set_border_width (GTK_CONTAINER (main_vbox), 12);
-  gtk_widget_set_visible (main_vbox, TRUE);
 
-  main_vbox = gimp_prefs_box_add_page (GIMP_PREFS_BOX (prefs_box),
-                                       "gimp-wilber",
-                                       _("Learn"),
-                                       _("Learn"),
-                                       "gimp-welcome-learn",
-                                       NULL,
-                                       &top_iter);
-  gtk_container_set_border_width (GTK_CONTAINER (main_vbox), 12);
+  welcome_dialog_create_creation_page (gimp, dialog, main_vbox);
   gtk_widget_set_visible (main_vbox, TRUE);
 
   main_vbox = gimp_prefs_box_add_page (GIMP_PREFS_BOX (prefs_box),
@@ -315,6 +310,11 @@ welcome_dialog_new (Gimp       *gimp,
                                        &top_iter);
   gtk_container_set_border_width (GTK_CONTAINER (main_vbox), 12);
   gtk_widget_set_visible (main_vbox, TRUE);
+
+  /* "Always show welcome dialog" checkbox */
+  prefs_check_button_add (G_OBJECT (config), "show-welcome-dialog",
+                          _("Show Welcome Dialog On Start"),
+                          GTK_BOX (gtk_dialog_get_content_area (GTK_DIALOG (dialog))));
 
   return dialog;
 
@@ -924,6 +924,33 @@ welcome_dialog_create_personalize_page (Gimp       *gimp,
 #endif
 
   g_clear_object (&size_group);
+}
+
+static void
+welcome_dialog_create_creation_page (Gimp       *gimp,
+                                     GtkWidget  *welcome_dialog,
+                                     GtkWidget  *main_vbox)
+{
+  GtkWidget *vbox;
+  GtkWidget *button;
+  GtkWidget *view;
+
+  vbox = prefs_frame_new (_("Create a New Image"), GTK_CONTAINER (main_vbox), FALSE);
+
+  button = gtk_button_new_with_mnemonic (_("C_reate"));
+  gtk_box_pack_start (GTK_BOX (vbox), button, FALSE, FALSE, 0);
+  gtk_widget_set_visible (button, TRUE);
+
+  vbox = prefs_frame_new (_("Open an Existing Image"), GTK_CONTAINER (main_vbox), FALSE);
+
+  button = gtk_button_new_with_mnemonic (_("_Open"));
+  gtk_box_pack_start (GTK_BOX (vbox), button, FALSE, FALSE, 0);
+  gtk_widget_set_visible (button, TRUE);
+
+
+  //gimp_document_view_new
+  //dialogs_welcome_get, send context
+
 }
 
 static void

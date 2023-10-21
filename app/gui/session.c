@@ -53,7 +53,8 @@ enum
   SINGLE_WINDOW_MODE,
   SHOW_TABS,
   TABS_POSITION,
-  LAST_TIP_SHOWN
+  LAST_TIP_SHOWN,
+  SHOW_WELCOME_DIALOG
 };
 
 
@@ -113,6 +114,8 @@ session_init (Gimp *gimp)
                               GINT_TO_POINTER (TABS_POSITION));
   g_scanner_scope_add_symbol (scanner, 0,  "last-tip-shown",
                               GINT_TO_POINTER (LAST_TIP_SHOWN));
+  g_scanner_scope_add_symbol (scanner, 0,  "show-welcome-dialog",
+                              GINT_TO_POINTER (SHOW_WELCOME_DIALOG));
 
   token = G_TOKEN_LEFT_PAREN;
 
@@ -288,6 +291,19 @@ session_init (Gimp *gimp)
                             "last-tip-shown", last_tip_shown,
                             NULL);
             }
+          else if (scanner->value.v_symbol == GINT_TO_POINTER (SHOW_WELCOME_DIALOG))
+            {
+              gboolean show_welcome_dialog;
+
+              token = G_TOKEN_IDENTIFIER;
+
+              if (! gimp_scanner_parse_boolean (scanner, &show_welcome_dialog))
+                break;
+
+              g_object_set (gimp->config,
+                            "show-welcome-dialog", show_welcome_dialog,
+                            NULL);
+            }
           token = G_TOKEN_RIGHT_PAREN;
           break;
 
@@ -414,6 +430,12 @@ session_save (Gimp     *gimp,
   gimp_config_writer_open (writer, "last-tip-shown");
   gimp_config_writer_printf (writer, "%d",
                              GIMP_GUI_CONFIG (gimp->config)->last_tip_shown);
+  gimp_config_writer_close (writer);
+
+  gimp_config_writer_open (writer, "show-welcome-dialog");
+  gimp_config_writer_identifier (writer,
+                                 GIMP_GUI_CONFIG (gimp->config)->show_welcome_dialog ?
+                                 "yes" : "no");
   gimp_config_writer_close (writer);
 
   if (! gimp_config_writer_finish (writer, "end of sessionrc", &error))
