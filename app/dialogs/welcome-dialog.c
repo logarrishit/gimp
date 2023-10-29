@@ -25,9 +25,11 @@
 #ifdef GDK_WINDOWING_WAYLAND
 #include <gdk/gdkwayland.h>
 #endif
+#include <gdk-pixbuf/gdk-pixbuf.h>
 
 #include "libgimpbase/gimpbase.h"
 #include "libgimpconfig/gimpconfig.h"
+#include "libgimpthumb/gimpthumb.h"
 #include "libgimpwidgets/gimpwidgets.h"
 
 #include "dialogs-types.h"
@@ -38,6 +40,12 @@
 
 #include "core/gimp.h"
 #include "core/gimp-utils.h"
+#include "core/gimpcontainer.h"
+#include "core/gimpimagefile.h"
+
+#include "dialogs/file-open-dialog.h"
+
+#include "file/file-open.h"
 
 #include "gui/icon-themes.h"
 #include "gui/themes.h"
@@ -80,6 +88,21 @@ static void   welcome_dialog_create_personalize_page (Gimp           *gimp,
 static void   welcome_dialog_create_creation_page    (Gimp           *gimp,
                                                       GtkWidget      *welcome_dialog,
                                                       GtkWidget      *main_vbox);
+
+static void   welcome_dialog_new_image_dialog        (GtkWidget      *button,
+                                                      GtkWidget      *welcome_dialog);
+static void   welcome_dialog_open_image_dialog       (GtkWidget      *button,
+                                                      GtkWidget      *welcome_dialog);
+static void   welcome_dialog_new_dialog_close        (GtkWidget      *dialog,
+                                                      GtkWidget      *welcome_dialog);
+static void   welcome_dialog_new_dialog_response     (GtkWidget      *dialog,
+                                                      gint            response_id,
+                                                      GtkWidget      *welcome_dialog);
+static void   welcome_dialog_open_dialog_close       (GtkWidget      *dialog,
+                                                      GtkWidget      *welcome_dialog);
+static void   welcome_open_activated_callback        (GtkListBox     *listbox,
+                                                      GtkListBoxRow  *row,
+                                                      GtkWidget      *welcome_dialog);
 
 static GtkWidget *welcome_dialog;
 
@@ -816,25 +839,245 @@ welcome_dialog_create_creation_page (Gimp       *gimp,
                                      GtkWidget  *main_vbox)
 {
   GtkWidget *vbox;
+  GtkWidget *hbox;
   GtkWidget *button;
-  GtkWidget *view;
+  GtkWidget *listbox;
+  gint       num_images;
+  gint       list_count;
 
-  vbox = prefs_frame_new (_("Create a New Image"), GTK_CONTAINER (main_vbox), FALSE);
+  hbox = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 6);
+  gtk_box_set_homogeneous (GTK_BOX (hbox), TRUE);
+  gtk_box_pack_start (GTK_BOX (main_vbox), hbox, FALSE, FALSE, 0);
+  gtk_widget_set_visible (hbox, TRUE);
+
+  vbox = prefs_frame_new (_("Create a New Image"), GTK_CONTAINER (hbox), FALSE);
 
   button = gtk_button_new_with_mnemonic (_("C_reate"));
   gtk_box_pack_start (GTK_BOX (vbox), button, FALSE, FALSE, 0);
   gtk_widget_set_visible (button, TRUE);
+  g_signal_connect (button, "clicked",
+                    G_CALLBACK (welcome_dialog_new_image_dialog),
+                    welcome_dialog);
 
-  vbox = prefs_frame_new (_("Open an Existing Image"), GTK_CONTAINER (main_vbox), FALSE);
+  vbox = prefs_frame_new (_("Open an Existing Image"), GTK_CONTAINER (hbox), FALSE);
 
   button = gtk_button_new_with_mnemonic (_("_Open"));
   gtk_box_pack_start (GTK_BOX (vbox), button, FALSE, FALSE, 0);
   gtk_widget_set_visible (button, TRUE);
+  g_signal_connect (button, "clicked",
+                    G_CALLBACK (welcome_dialog_open_image_dialog),
+                    welcome_dialog);
+
+  /* Recent Files */
+  vbox = prefs_frame_new (_("Recent Images"), GTK_CONTAINER (main_vbox), FALSE);
+
+  listbox = gtk_list_box_new ();
+  gtk_list_box_set_selection_mode (GTK_LIST_BOX (listbox),
+                                   GTK_SELECTION_BROWSE);
+  gtk_container_add (GTK_CONTAINER (vbox), listbox);
+  gtk_widget_set_visible (listbox, TRUE);
+
+  num_images = gimp_container_get_n_children (gimp->documents);
+  list_count = (num_images <= 5) ? num_images : 5;
+
+  for (gint i = 0; i < list_count; i++)
+    {
+      GimpImagefile *imagefile;
+      GtkWidget     *row;
+      GtkWidget     *grid;
+      GtkWidget     *name_label;
+      GtkWidget     *thumbnail;
+      GFile         *file;
+      GimpThumbnail *icon;
+      const gchar   *name;
+      gchar         *basename;
+      gchar         *escaped;
+
+      imagefile = (GimpImagefile *)
+        gimp_container_get_child_by_index (gimp->documents, i);
+
+      file = gimp_imagefile_get_file (imagefile);
+
+      name     = gimp_file_get_utf8_name (file);
+      basename = g_path_get_basename (name);
+
+      escaped = gimp_escape_uline (basename);
+      g_free (basename);
+
+      row = gtk_list_box_row_new ();
+      g_object_set_data_full (G_OBJECT (row),
+                              "imagefile",
+                              imagefile,
+                              NULL);
+
+      grid = gtk_grid_new ();
+      gtk_grid_set_column_spacing (GTK_GRID (grid), 12);
+      gtk_container_add (GTK_CONTAINER (row), grid);
+
+      icon = gimp_imagefile_get_thumbnail (imagefile);
+      if (icon)
+        {
+          GdkPixbuf *pixbuf = NULL;
+
+          pixbuf = gimp_thumbnail_load_thumb (icon, 1, NULL);
+          pixbuf = gdk_pixbuf_scale_simple (pixbuf,
+                                            32, 32,
+                                            GDK_INTERP_BILINEAR);
+
+          thumbnail = gtk_image_new_from_pixbuf (pixbuf);
+        }
+      else
+        {
+          //If invalid file, skip to next one
+          if (list_count < num_images)
+            list_count++;
+
+          continue;
+        }
+      gtk_grid_attach (GTK_GRID (grid), thumbnail, 1, 0, 1, 1);
+
+      name_label = gtk_label_new (escaped);
+      g_object_set (name_label, "xalign", 0.0, NULL);
+      gtk_grid_attach (GTK_GRID (grid), name_label, 2, 0, 1, 1);
+
+      gtk_widget_show_all (row);
+      gtk_list_box_insert (GTK_LIST_BOX (listbox), row, -1);
+    }
+
+  g_signal_connect (listbox, "row-activated",
+                    G_CALLBACK (welcome_open_activated_callback),
+                    welcome_dialog);
+}
 
 
-  //gimp_document_view_new
-  //dialogs_welcome_get, send context
+/* Actions */
+static void
+welcome_dialog_new_image_dialog (GtkWidget *button,
+                                 GtkWidget *welcome_dialog)
+{
+  GtkWidget *dialog;
 
+  dialog = gimp_dialog_factory_dialog_new (gimp_dialog_factory_get_singleton (),
+                                           gimp_widget_get_monitor (welcome_dialog),
+                                           NULL /*ui_manager*/,
+                                           welcome_dialog,
+                                           "gimp-image-new-dialog", -1, FALSE);
+
+  if (dialog)
+    {
+      gtk_widget_set_visible (welcome_dialog, FALSE);
+
+      gtk_window_present (GTK_WINDOW (dialog));
+      g_signal_connect (dialog, "response",
+                        G_CALLBACK (welcome_dialog_new_dialog_response),
+                        welcome_dialog);
+      g_signal_connect (dialog, "destroy",
+                        G_CALLBACK (welcome_dialog_new_dialog_close),
+                        welcome_dialog);
+    }
+}
+
+static void
+welcome_dialog_open_image_dialog (GtkWidget *button,
+                                  GtkWidget *welcome_dialog)
+{
+  Gimp      *gimp = g_object_get_data (G_OBJECT (welcome_dialog), "gimp");
+  GtkWidget *dialog;
+
+  dialog = file_open_dialog_new (gimp);
+
+  if (dialog)
+    {
+      gtk_widget_set_visible (welcome_dialog, FALSE);
+
+      gtk_window_present (GTK_WINDOW (dialog));
+
+      g_signal_connect (dialog, "destroy",
+                        G_CALLBACK (welcome_dialog_open_dialog_close),
+                        welcome_dialog);
+    }
+}
+
+static void
+welcome_dialog_new_dialog_close (GtkWidget *dialog,
+                                 GtkWidget *welcome_dialog)
+{
+  /* Reshow Welcome Dialog if secondary dialogue is cancelled */
+  if (welcome_dialog)
+    gtk_widget_set_visible (welcome_dialog, TRUE);
+}
+
+static void
+welcome_dialog_new_dialog_response (GtkWidget *dialog,
+                                    gint       response_id,
+                                    GtkWidget *welcome_dialog)
+{
+  switch (response_id)
+    {
+    case GTK_RESPONSE_OK:
+      g_signal_handlers_disconnect_by_func (dialog,
+                                            welcome_dialog_new_dialog_close,
+                                            welcome_dialog);
+      gtk_widget_destroy (welcome_dialog);
+      break;
+
+    default:
+      break;
+    }
+}
+
+static void
+welcome_dialog_open_dialog_close (GtkWidget *dialog,
+                                  GtkWidget *welcome_dialog)
+{
+  GSList *files = NULL;
+
+  files = gtk_file_chooser_get_files (GTK_FILE_CHOOSER (dialog));
+
+  if (files && welcome_dialog)
+    {
+      gtk_widget_destroy (welcome_dialog);
+      g_slist_free_full (files, (GDestroyNotify) g_object_unref);
+      return;
+    }
+
+  if (welcome_dialog)
+    gtk_widget_set_visible (welcome_dialog, TRUE);
+}
+
+static void
+welcome_open_activated_callback (GtkListBox    *listbox,
+                                 GtkListBoxRow *row,
+                                 GtkWidget     *welcome_dialog)
+{
+  GimpImagefile     *imagefile = NULL;
+  GimpImage         *image     = NULL;
+  Gimp              *gimp      = g_object_get_data (G_OBJECT (welcome_dialog), "gimp");
+  GFile             *file;
+  GimpPDBStatusType  status;
+  GtkWidget         *parent;
+  GError            *error     = NULL;
+
+  g_return_if_fail (row != NULL);
+
+  parent    = gtk_widget_get_parent (welcome_dialog);
+  imagefile = g_object_get_data (G_OBJECT (row), "imagefile");
+  file      = gimp_imagefile_get_file (imagefile);
+
+  image = file_open_with_display (gimp, gimp_get_user_context (gimp), NULL, file, FALSE,
+                                  NULL, &status, NULL);
+
+  if (! image && status != GIMP_PDB_CANCEL)
+    {
+      gimp_message (gimp, G_OBJECT (parent), GIMP_MESSAGE_ERROR,
+                    _("Opening '%s' failed:\n\n%s"),
+                    gimp_file_get_utf8_name (file), error->message);
+      g_clear_error (&error);
+    }
+  else
+    {
+      gtk_widget_destroy (welcome_dialog);
+    }
 }
 
 static void
