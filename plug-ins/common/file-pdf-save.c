@@ -882,12 +882,13 @@ gui_single (GimpProcedure       *procedure,
             GimpProcedureConfig *config,
             GimpImage           *image)
 {
-  GtkWidget *window;
-  GtkWidget *widget;
-  GList     *missing_fonts;
-  GList     *dialog_props = NULL;
-  gboolean   run;
-  gint32     n_layers;
+  GtkWidget  *window;
+  GtkWidget  *widget;
+  GimpLayer **layers;
+  GList      *missing_fonts;
+  GList      *dialog_props = NULL;
+  gboolean    run;
+  gint32      n_layers;
 
   gimp_ui_init (PLUG_IN_BINARY);
 
